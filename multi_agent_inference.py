@@ -12,7 +12,7 @@ from tianshou.data import Batch
 
 from nn.model import Actors, ToyModel
 from nn.model import HAN
-from trace import convert_trace
+from trace_util import convert_trace
 from utils import config, tools
 from utils.benchmark import random_select_random_allocate, random_select_min_allocate, optimus, tiresias, \
     optimus_sync_speed_curve_fitting

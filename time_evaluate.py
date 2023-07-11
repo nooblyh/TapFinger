@@ -13,7 +13,7 @@ import statistics
 from tianshou.data import Batch
 
 from nn.model import Actors, HAN
-from trace import convert_trace
+from trace_util import convert_trace
 from utils import config, tools
 
 

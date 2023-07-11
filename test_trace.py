@@ -14,7 +14,7 @@ import custom_gym.myenv
 from nn.model import Actors
 from nn.model import Critics, HAN, DataParalleledHAN
 from policy.ppo import PPOPolicy
-from trace import convert_trace
+from trace_util import convert_trace
 from utils import config
 
 if __name__ == '__main__':

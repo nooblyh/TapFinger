@@ -9,24 +9,26 @@ from utils import config
 
 
 def csv_to_dict():
-    csv_file = open("./trace/trace.csv", "r")
+    # csv_file = open("./trace/trace.csv", "r")
+    csv_file = open("./trace_container.csv", "r")
     reader = csv.reader(csv_file)
 
     result = {}
     for item in reader:
         if item[0] in result:
             if item[0] == "audio":
-                result[item[0]][int(item[1]), int(item[2])] = 5 / float(item[3])
+                result[item[0]][int(item[1]), int(item[2])] = 10 / float(item[3])
             else:
                 if item[0] == "lm":
                     scale = 10
                 else:
                     scale = 10
                 x, y, result[item[0]][int(item[1]), int(item[2])] = fit(item, scale)
+                print(result[item[0]][int(item[1]), int(item[2])])
         else:
             if item[0] == "audio":
                 result[item[0]] = np.zeros(config.discrete_action_dimension, dtype=float)
-                result[item[0]][int(item[1]), int(item[2])] = 1 / float(item[3])
+                result[item[0]][int(item[1]), int(item[2])] = 10 / float(item[3])
             else:
                 if item[0] == "lm":
                     scale = 10
@@ -34,12 +36,13 @@ def csv_to_dict():
                     scale = 10
                 result[item[0]] = np.empty(config.discrete_action_dimension, dtype=object)
                 x, y, result[item[0]][int(item[1]), int(item[2])] = fit(item, scale)
+                print(result[item[0]][int(item[1]), int(item[2])])
     csv_file.close()
     return result
 
 
 def progress_fit_func(x, a, b):
-    return a * (x ** b)
+    return a * x + b
 
 
 def get_delta_progress(y, a, b):
@@ -145,9 +148,9 @@ def plot_motivation_gpu_on_cpu():
     plt.savefig('motivation_GPU_on_CPU.pdf')
 
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
 #     plot_motivation_cpu_on_gpu()
 #     plot_motivation_gpu_on_cpu()
-    # csv_to_dict()
-    # result = csv_to_dict()
-    # print(get_delta_progress(0.8, *result["mnist"][16, 8]))
+    csv_to_dict()
+    result = csv_to_dict()
+    print(get_delta_progress(0.8, *result["mnist"][16, 8]))

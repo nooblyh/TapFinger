@@ -7,7 +7,7 @@ from gym.utils import seeding
 from torch_geometric.data import HeteroData
 
 from graph.node_graph import DeviceNode
-from trace import convert_trace
+from trace_util import convert_trace
 from utils import config, tools
 import copy
 
