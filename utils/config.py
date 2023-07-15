@@ -5,35 +5,34 @@ import torch
 
 
 # synthetic
-class JobType(IntEnum):
-    IMG = 0
-    LM = 1
-
-
-job_probs = [1 / 2, 1 / 2]
-
-job_time = {JobType.IMG: 1, JobType.LM: 1}
-task_name = {JobType.IMG: "mnist", JobType.LM: "lm"}
-
-# trace
 # class JobType(IntEnum):
 #     IMG = 0
 #     LM = 1
-#     AUD = 2
-
-# job_probs = [1 / 3, 1 / 3, 1 / 3]
-
-# job_time = {JobType.IMG: 1, JobType.LM: 1, JobType.AUD: 1}
-# task_name = {JobType.IMG: "mnist", JobType.LM: "lm", JobType.AUD: "audio"}
-
-# multi agent
-agent_num = 20
-
-# synthetic
-arrival_lambda = 20
+#
+# job_probs = [1 / 2, 1 / 2]
+#
+# job_time = {JobType.IMG: 1, JobType.LM: 1}
+# task_name = {JobType.IMG: "mnist", JobType.LM: "lm"}
 
 # trace
-# arrival_lambda = 3
+class JobType(IntEnum):
+    IMG = 0
+    LM = 1
+    AUD = 2
+
+job_probs = [1 / 3, 1 / 3, 1 / 3]
+
+job_time = {JobType.IMG: 1, JobType.LM: 1, JobType.AUD: 1}
+task_name = {JobType.IMG: "mnist", JobType.LM: "lm", JobType.AUD: "audio"}
+
+# multi agent
+agent_num = 3
+
+# synthetic
+# arrival_lambda = 2
+
+# trace
+arrival_lambda = 2
 
 # optional resource should be place after the required resource
 # `requirement_nonzero_num` is the index of the first optional resource if any
@@ -41,25 +40,24 @@ cpu_dim = 0
 gpu_dim = 1
 
 # synthetic
-job_min_requirement = {JobType.IMG: np.asarray([2, 1], dtype=int),
-                       JobType.LM: np.asarray([2, 1], dtype=int), }
-
-switch_weight = {JobType.IMG: 1, JobType.LM: 1}
-
-discrete_action_dimension = (17, 17)
-resource_capacity = (16, 16)
-hetero_resource_capacity = np.asarray([(4, 4), (8, 8), (12, 12), (16, 16), (24, 24), (32, 32)], dtype=np.int64)
-
-# trace
-# job_min_requirement = {JobType.IMG: np.asarray([1, 1], dtype=int),
-#                        JobType.LM: np.asarray([1, 1], dtype=int),
-#                        JobType.AUD: np.asarray([1, 1], dtype=int), }
+# job_min_requirement = {JobType.IMG: np.asarray([2, 1], dtype=int),
+#                        JobType.LM: np.asarray([2, 1], dtype=int),}
 #
-# switch_weight = {JobType.IMG: 0.5, JobType.LM: 0.5, JobType.AUD: 0.5}
+# switch_weight = {JobType.IMG: 0.5, JobType.LM: 0.5}
+#
+# discrete_action_dimension = (17, 17)
+# resource_capacity = (16, 16)
 
 # trace
-# discrete_action_dimension = (17, 9)  # 4 cpus / 112 cpus, 1  gpu / 8 gpus
-# resource_capacity = (16, 8)
+job_min_requirement = {JobType.IMG: np.asarray([1, 1], dtype=int),
+                       JobType.LM: np.asarray([1, 1], dtype=int),
+                       JobType.AUD: np.asarray([1, 1], dtype=int), }
+
+switch_weight = {JobType.IMG: 0.5, JobType.LM: 0.5, JobType.AUD: 0.5}
+
+discrete_action_dimension = (17, 9)  # 4 cpus / 112 cpus, 1  gpu / 8 gpus
+# resource_capacity = (17, 9)
+hetero_resource_capacity = np.asarray([(16, 4), (16, 4), (16, 8)], dtype=np.int64)
 
 requirement_nonzero_num = 2
 
@@ -71,7 +69,7 @@ resource_progress_weight = {JobType.IMG: img_weight,
                             JobType.LM: lm_weight}
 resource_progress_base = {JobType.IMG: np.asarray([0.25]),
                           JobType.LM: np.asarray([0])}
-progress_noise = 0.2
+progress_noise = 0
 # job_min_requirement = {JobType.IMG: np.asarray([1], dtype=int),
 #                        JobType.AUD: np.asarray([1], dtype=int)}
 #
@@ -85,7 +83,7 @@ progress_noise = 0.2
 
 resource_dim = len(discrete_action_dimension)
 one_discrete_action_space = np.prod(discrete_action_dimension)
-episode_task_num = 64 * agent_num
+episode_task_num = 200
 pending_num = 10
 hidden_dim = 256
 preprocess_dim = hidden_dim * pending_num

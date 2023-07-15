@@ -312,3 +312,133 @@ def tiresias(obs, elastic=True, hetero=False):
     assert (resource >= 0).all()
     return {"allocation_act": allocation_act, "index_act": index_act, "resource_allocation": obs["resource_allocation"],
             "resource": resource}
+
+def non_preemptable_tiresias(obs, hetero=False):
+    if hetero:
+        resource = config.hetero_resource_capacity.copy()
+    else:
+        resource = np.asarray([config.resource_capacity], dtype=np.int64).repeat(config.agent_num, 0)
+    capacity = resource.copy()
+    index_act = np.full((config.agent_num,), -1, dtype=np.int64)
+    allocation_act = np.full((config.agent_num,), -1, dtype=np.int64)
+    duplicate = []
+    for agent_idx in reversed(range(config.agent_num)):
+        for r_a in obs["resource_allocation"][agent_idx].values():
+            resource[agent_idx] -= r_a
+        r_a = capacity[agent_idx] / np.maximum(1, (sum(x is not None for x in obs["pending"][agent_idx]) + len(obs["running"][agent_idx])))
+        
+        r_a = np.ceil(r_a).astype(int)
+        r_a = np.maximum(np.ones_like(r_a), r_a)
+        tmp = obs["pending"][agent_idx][obs["pending"][agent_idx].nonzero()[0]]
+        has_next = False
+        if tmp.shape[0] == 0:
+            index_act[agent_idx] = -1
+        else:
+            for d_curr in tmp:
+                if d_curr.device_id in duplicate:
+                    continue
+                else:
+                    duplicate.append(d_curr.device_id)
+                    index_act[agent_idx] = d_curr.drl_index[agent_idx]
+                    has_next = True
+                    break
+            if not has_next:
+                index_act[agent_idx] = -1
+
+        if has_next:
+            r_a = np.minimum(resource[agent_idx], r_a)
+            if np.all(r_a):
+                obs["resource_allocation"][agent_idx][d_curr.device_id] = r_a
+                resource_onehot = np.zeros(config.discrete_action_dimension)
+                resource_onehot[tuple(r_a)] = 1
+                allocation_act[agent_idx] = resource_onehot.flatten().nonzero()[0].item()
+            else:
+                index_act[agent_idx] = -1
+    return {"allocation_act": allocation_act, "index_act": index_act, "resource_allocation": obs["resource_allocation"],
+        "resource": resource}
+
+
+def non_preemptable_optimus(obs, params, hetero=False):
+    if hetero:
+        resource = config.hetero_resource_capacity.copy()
+    else:
+        resource = np.asarray([config.resource_capacity], dtype=np.int64).repeat(config.agent_num, 0)
+    capacity = resource.copy()
+    true_resource = resource.copy()
+    maximal = np.asarray(config.discrete_action_dimension) - 1
+    index_act = np.full((config.agent_num,), -1, dtype=np.int64)
+    allocation_act = np.full((config.agent_num,), -1, dtype=np.int64)
+    duplicate = []
+    for agent_idx in reversed(range(config.agent_num)):
+        for r_a in obs["resource_allocation"][agent_idx].values():
+            resource[agent_idx] -= r_a
+        true_resource[agent_idx] = resource[agent_idx].copy()
+        # pre allocation
+        not_none_idx = []
+        for i in range(len(obs["pending"][agent_idx])):
+            if obs["pending"][agent_idx][i] != None:
+                not_none_idx.append(i)
+        pre_allocation = {}
+        for idx in not_none_idx:
+            pre_allocation[obs["pending"][agent_idx][idx].device_id] = np.asarray([2, 1], dtype=int)
+
+        if len(not_none_idx) == 0:
+            continue
+
+        sum_q = np.zeros((obs["pending"][agent_idx].shape[0], 2))
+        while (resource[agent_idx] >= 0).all():
+            length = len(not_none_idx)
+            if not length:
+                break
+            q = np.zeros((obs["pending"][agent_idx].shape[0], 2))
+            for l in not_none_idx:
+                device = obs["pending"][agent_idx][l] 
+                estimate_speed = optimus_sync_speed_fit_func(
+                    tuple(pre_allocation[device.device_id]), *params[device.job_type])
+                base = (1 - device.progress) / estimate_speed
+                for ll in range(2):
+                    delta = np.asarray([0, 0])
+                    if resource[agent_idx][ll] > 0:
+                        delta[ll] = 1
+                    else:
+                        continue
+                    if (pre_allocation[device.device_id] + delta > maximal).any():
+                        q[l, ll] = 0
+                    else:
+                        estimate_speed = optimus_sync_speed_fit_func(
+                            tuple(pre_allocation[device.device_id] + delta),
+                            *params[device.job_type])
+                        now = (1 - device.progress) / estimate_speed
+                        q[l, ll] = (base - now) / pre_allocation[device.device_id][ll]
+            if (q <= 0).all():
+                break
+            l, ll = np.unravel_index(np.argmax(q), q.shape)
+            device = obs["pending"][agent_idx][l]
+            delta = np.asarray([0, 0])
+            delta[ll] = 1
+            pre_allocation[device.device_id] += delta
+            resource[agent_idx] -= delta
+
+        curr_idx = not_none_idx[0]
+        curr_usage = sum(pre_allocation[obs["pending"][agent_idx][curr_idx].device_id])
+        for idx in not_none_idx:
+            if sum(pre_allocation[obs["pending"][agent_idx][idx].device_id]) > curr_usage:
+                curr_idx = idx
+
+        d_curr = obs["pending"][agent_idx][curr_idx]
+        r_a = pre_allocation[obs["pending"][agent_idx][curr_idx].device_id]
+        r_a = np.minimum(true_resource[agent_idx], r_a)
+
+        # pre allocation bias
+        if r_a[config.gpu_dim] > 1:
+            r_a[ll] -= 1                    
+
+        if np.all(r_a) and d_curr.device_id not in duplicate:
+            duplicate.append(d_curr.device_id)
+            obs["resource_allocation"][agent_idx][d_curr.device_id] = r_a
+            resource_onehot = np.zeros(config.discrete_action_dimension)
+            resource_onehot[tuple(r_a)] = 1
+            index_act[agent_idx] = d_curr.drl_index[agent_idx]
+            allocation_act[agent_idx] = resource_onehot.flatten().nonzero()[0].item()
+    return {"allocation_act": allocation_act, "index_act": index_act, "resource_allocation": obs["resource_allocation"],
+        "resource": true_resource}

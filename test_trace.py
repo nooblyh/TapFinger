@@ -21,10 +21,10 @@ if __name__ == '__main__':
     train_env_num = 32
     test_env_num = 64
     trace_fit = convert_trace.csv_to_dict()
-    envs = DummyVectorEnv([lambda: gym.make('ENVTEST-v3', is_random=False, is_test=False, trace_fit=trace_fit) for _ in range(train_env_num)])
-    tmp = [lambda: gym.make('ENVTEST-v3', is_random=False, is_test=True, needs_print=True, trace_fit=trace_fit)]
+    envs = DummyVectorEnv([lambda: gym.make('ENVTEST-v3', is_random=False, is_test=False, trace_fit=trace_fit, hetero=True) for _ in range(train_env_num)])
+    tmp = [lambda: gym.make('ENVTEST-v3', is_random=False, is_test=True, needs_print=True, trace_fit=trace_fit, hetero=True)]
     test_env = DummyVectorEnv(
-        tmp + [lambda: gym.make('ENVTEST-v3', is_random=False, is_test=True, trace_fit=trace_fit) for _ in range(1, test_env_num)])
+        tmp + [lambda: gym.make('ENVTEST-v3', is_random=False, is_test=True, trace_fit=trace_fit, hetero=True) for _ in range(1, test_env_num)])
 
     if config.device == torch.device("cpu") or not config.distributed_HAN:
         model = HAN()

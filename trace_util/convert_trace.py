@@ -15,6 +15,29 @@ def csv_to_dict():
 
     result = {}
     for item in reader:
+        val = float(item[3]) + 14
+        if item[0] in result:
+            if item[0] == "audio":
+                result[item[0]][int(item[1]), int(item[2])] = 5 / val
+            else:
+                result[item[0]][int(item[1]), int(item[2])] = (5 / val, 0)
+        else:
+            if item[0] == "audio":
+                result[item[0]] = np.zeros(config.discrete_action_dimension, dtype=float)
+                result[item[0]][int(item[1]), int(item[2])] = 5 / val
+            else:
+                result[item[0]] = np.empty(config.discrete_action_dimension, dtype=object)
+                result[item[0]][int(item[1]), int(item[2])] = (5 / val, 0)
+    csv_file.close()
+    return result
+
+def old_csv_to_dict():
+    # csv_file = open("./trace/trace.csv", "r")
+    csv_file = open("./trace_container.csv", "r")
+    reader = csv.reader(csv_file)
+
+    result = {}
+    for item in reader:
         if item[0] in result:
             if item[0] == "audio":
                 result[item[0]][int(item[1]), int(item[2])] = 10 / float(item[3])
@@ -46,7 +69,7 @@ def progress_fit_func(x, a, b):
 
 
 def get_delta_progress(y, a, b):
-    step = np.power(y / a, 1 / b)
+    step = (y - b) / a
     return progress_fit_func(step + 1, a, b)
 
 
@@ -80,7 +103,7 @@ def plot(x, y, result, item):
 
 
 def get_jct():
-    csv_file = open("trace.csv", "r")
+    csv_file = open("trace_container.csv", "r")
     reader = csv.reader(csv_file)
     result = np.zeros(config.discrete_action_dimension, dtype=float)
     for item in reader:
