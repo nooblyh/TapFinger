@@ -380,13 +380,13 @@ def non_preemptable_optimus(obs, params, hetero=False):
                 not_none_idx.append(i)
         pre_allocation = {}
         for idx in not_none_idx:
-            pre_allocation[obs["pending"][agent_idx][idx].device_id] = np.asarray([2, 1], dtype=int)
+            pre_allocation[obs["pending"][agent_idx][idx].device_id] = np.asarray([1, 1], dtype=int)
 
         if len(not_none_idx) == 0:
             continue
 
         sum_q = np.zeros((obs["pending"][agent_idx].shape[0], 2))
-        while (resource[agent_idx] >= 0).all():
+        while (resource[agent_idx] >= 0).any():
             length = len(not_none_idx)
             if not length:
                 break
@@ -409,7 +409,7 @@ def non_preemptable_optimus(obs, params, hetero=False):
                             tuple(pre_allocation[device.device_id] + delta),
                             *params[device.job_type])
                         now = (1 - device.progress) / estimate_speed
-                        q[l, ll] = (base - now) / pre_allocation[device.device_id][ll]
+                        q[l, ll] = 1 + (base - now) / pre_allocation[device.device_id][ll]
             if (q <= 0).all():
                 break
             l, ll = np.unravel_index(np.argmax(q), q.shape)
@@ -420,10 +420,11 @@ def non_preemptable_optimus(obs, params, hetero=False):
             resource[agent_idx] -= delta
 
         curr_idx = not_none_idx[0]
-        curr_usage = sum(pre_allocation[obs["pending"][agent_idx][curr_idx].device_id])
+        curr_usage = pre_allocation[obs["pending"][agent_idx][curr_idx].device_id][config.gpu_dim]
         for idx in not_none_idx:
-            if sum(pre_allocation[obs["pending"][agent_idx][idx].device_id]) > curr_usage:
+            if pre_allocation[obs["pending"][agent_idx][idx].device_id][config.gpu_dim] > curr_usage:
                 curr_idx = idx
+                curr_usage = pre_allocation[obs["pending"][agent_idx][idx].device_id][config.gpu_dim]
 
         d_curr = obs["pending"][agent_idx][curr_idx]
         r_a = pre_allocation[obs["pending"][agent_idx][curr_idx].device_id]

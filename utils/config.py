@@ -32,7 +32,7 @@ agent_num = 3
 # arrival_lambda = 2
 
 # trace
-arrival_lambda = 2
+arrival_lambda = 1
 
 # optional resource should be place after the required resource
 # `requirement_nonzero_num` is the index of the first optional resource if any

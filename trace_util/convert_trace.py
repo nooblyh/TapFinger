@@ -47,7 +47,6 @@ def old_csv_to_dict():
                 else:
                     scale = 10
                 x, y, result[item[0]][int(item[1]), int(item[2])] = fit(item, scale)
-                print(result[item[0]][int(item[1]), int(item[2])])
         else:
             if item[0] == "audio":
                 result[item[0]] = np.zeros(config.discrete_action_dimension, dtype=float)
@@ -59,7 +58,6 @@ def old_csv_to_dict():
                     scale = 10
                 result[item[0]] = np.empty(config.discrete_action_dimension, dtype=object)
                 x, y, result[item[0]][int(item[1]), int(item[2])] = fit(item, scale)
-                print(result[item[0]][int(item[1]), int(item[2])])
     csv_file.close()
     return result
 
@@ -70,7 +68,7 @@ def progress_fit_func(x, a, b):
 
 def get_delta_progress(y, a, b):
     step = (y - b) / a
-    return progress_fit_func(step + 1, a, b)
+    return progress_fit_func(step + 1, a, b) - y
 
 
 def progress_curve_fitting(x_arr, y_arr):

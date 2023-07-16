@@ -235,7 +235,7 @@ class EnvTestMultiAgent(gym.Env):
             return 0
         else:
             res = (config.resource_progress_weight[job_type][tuple(resource_allocation)]) * (np.sqrt(1.2 - progress)) + \
-                  config.resource_progress_base[job_type] + (self.np_random.random() - 0.5) * config.progress_noise
+                  config.resource_progress_base[job_type]
             return max(0, res)
 
     def calculate_trace_progress(self, job_type, resource_allocation, progress):
@@ -246,7 +246,7 @@ class EnvTestMultiAgent(gym.Env):
                 res = self.trace_fit[config.task_name[job_type]][tuple(resource_allocation)]
             else:
                 res = convert_trace.get_delta_progress(progress, *self.trace_fit[config.task_name[job_type]][
-                    tuple(resource_allocation)]) + (self.np_random.random() - 0.5) * config.progress_noise
+                    tuple(resource_allocation)])
             return max(0, res)
 
     def load_tasks(self):
