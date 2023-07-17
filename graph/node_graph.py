@@ -16,3 +16,6 @@ class DeviceNode(object):
         self.attained_gpu_service = 0
         self.start_time = -1
         self.arrive_time = 0
+        self.gpu_list = []
+        self.arrive_realworld_time = 0
+        self.cid = ""

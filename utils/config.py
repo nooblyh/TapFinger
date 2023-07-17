@@ -24,6 +24,7 @@ job_probs = [1 / 3, 1 / 3, 1 / 3]
 
 job_time = {JobType.IMG: 1, JobType.LM: 1, JobType.AUD: 1}
 task_name = {JobType.IMG: "mnist", JobType.LM: "lm", JobType.AUD: "audio"}
+agent_name = {0: 2, 1: 3, 2: 5}
 
 # multi agent
 agent_num = 3

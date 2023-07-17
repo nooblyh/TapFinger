@@ -2,6 +2,10 @@ import requests
 from urllib.parse import urljoin
 import json
 
+from urllib3.exceptions import InsecureRequestWarning
+
+requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
+
 f = open("portainer/token.json")
 tmp = json.load(f)
 token = tmp["token"]
@@ -33,10 +37,11 @@ def update_tracker():
             req = urljoin(url, "{}/".format(n))
             req = urljoin(req, inspect_docker)
             r = requests.get(req, headers=default_headers, verify=False)
-            start_time = r.json()["State"]["StartedAt"]
-            end_time = r.json()["State"]["FinishedAt"]
+            content = r.json()
+            start_time = content["State"]["StartedAt"]
+            end_time = content["State"]["FinishedAt"]
             tasks[c["Names"][0]] = (start_time, end_time)
-    with open("res.json", "w") as f:    
+    with open("start_exited.json", "w") as f:    
         json.dump(tasks, f)
 
 
@@ -50,6 +55,14 @@ def all_exit():
                 return False
     return True
 
+def is_exit_without_error(id, node):
+    inspect_docker = "docker/containers/{}/json".format(id)
+    req = urljoin(url, "{}/".format(node))
+    req = urljoin(req, inspect_docker)
+    r = requests.get(req, headers=default_headers, verify=False)
+    content = r.json()
+    assert content["State"]["Error"] == ""
+    return content["State"]["Status"] == 'exited'
 
 def start_task(name, cpu_num, gpu_list, node, task_type):
     params = {"name": name}
@@ -97,9 +110,12 @@ def start_task(name, cpu_num, gpu_list, node, task_type):
     }
     r = requests.post(req, headers=default_headers, verify=False, params=params, json=data)
     resp = r.json()
-
+    print(resp)
     start_docker = "docker/containers/{}/start".format(resp["Id"])
     req = urljoin(url, node_url)
     req = urljoin(req, start_docker)
-    r = requests.post(req, headers=default_headers, verify=False)
-    print(r.status_code)
+    r = requests.post(req, headers=default_headers, verify=False, json={})
+    print(r.content)
+    return resp["Id"]
+
+# start_task("yihong-debug123", 16, ["0", "1"], 2, "mnist")

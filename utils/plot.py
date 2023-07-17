@@ -28,6 +28,21 @@ def plot_jct(data, names, data_dir):
     plt.savefig(data_dir + 'jct.pdf')
 
 
+def plot_jct_container(data, names, data_dir):
+    plt.style.use(['default'])
+    prop_cycle = plt.rcParams['axes.prop_cycle']
+
+    plt.rcParams['axes.facecolor'] = "whitesmoke"
+
+    plt.style.use(['ieee'])
+    plt.rcParams['axes.prop_cycle'] = prop_cycle
+    # don't show outlier points
+    fig1, ax1 = plt.subplots()
+    ax1.boxplot(data, 0, '*', labels=names)
+    ax1.set_ylabel("Completion Time (Second)")
+    plt.tight_layout()
+    plt.savefig(data_dir + 'jct.pdf')
+
 def plot_task_accumulation(data, names, data_dir):
     plt.style.use(['default'])
     prop_cycle = plt.rcParams['axes.prop_cycle']

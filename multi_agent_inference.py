@@ -30,7 +30,7 @@ if __name__ == '__main__':
         # model_names = ["Tiresias", "Optimus", "Random", "Min", "TapFinger", "No-HAN"]
 
         if "Optimus" in model_names:
-            env = gym.make('ENVTEST-v3', is_random=False, is_test=True, needs_print=False, is_inference=True,
+            env = gym.make('ENVTEST-v4', is_random=False, is_test=True, needs_print=False, is_inference=True,
                            is_optimus=True, trace_fit=trace_fit, hetero=hetero)
             env.seed(RANDOM_SEED)
             cpu_arr = np.tile(np.arange(0, config.discrete_action_dimension[config.cpu_dim], dtype=float),
@@ -72,9 +72,9 @@ if __name__ == '__main__':
                 is_tiresias = True
             elif model_name == "Vanilla DRL" or model_name == "No-HAN":
                 gnn_state = False
-            env = gym.make('ENVTEST-v3', is_random=False, is_test=True, needs_print=False, is_inference=True,
+            env = gym.make('ENVTEST-v4', is_random=False, is_test=True, needs_print=False, is_inference=True,
                            is_tiresias=is_tiresias, is_optimus=is_optimus, gnn_state=gnn_state, trace_fit=trace_fit,
-                           hetero=hetero)
+                           hetero=hetero, test_name=test_name)
             env.seed(RANDOM_SEED)
             observation = env.reset()
 
