@@ -29,6 +29,8 @@ Inference: `python multi_agent_inference.py`
 (There is a conflict between the inference config and the training config, so the inference cannot run directly if the current `config.py` is not correct😟)
 
 # Publications
+If our work would have the honor of contributing to your research, you can cite the papers below.
+
 [Li, Yihong, et al. "TapFinger: Task Placement and Fine-Grained Resource Allocation for Edge Machine Learning." IEEE INFOCOM. 2023.](http://i2.cs.hku.hk/~cwu/papers/yhli-infocom23.pdf)
 
 [Li, Yihong, et al. "Task Placement and Resource Allocation for Edge Machine Learning: A GNN-based Multi-Agent Reinforcement Learning Paradigm." arXiv preprint arXiv:2302.00571 (2023).](https://arxiv.org/abs/2302.00571)
