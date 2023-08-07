@@ -14,3 +14,8 @@ register(
     id='ENVTEST-v3',
     entry_point='custom_gym.myenv.env_test_multi_agent:EnvTestMultiAgent',
 )
+
+register(
+    id='ENVTEST-v4',
+    entry_point='custom_gym.myenv.env_test_container:EnvTestContainer',
+)

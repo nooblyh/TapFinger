@@ -1,3 +1,5 @@
+import json
+import time
 import uuid
 
 import gym
@@ -12,12 +14,12 @@ from utils import config, tools
 import copy
 
 from utils.config import JobType
+from portainer.utils import start_task, all_exit, update_tracker, is_exit_without_error
 
-
-class EnvTestMultiAgent(gym.Env):
+class EnvTestContainer(gym.Env):
 
     def __init__(self, is_random, is_test, needs_print=False, is_inference=False, is_optimus=False, is_tiresias=False,
-                 gnn_state=True, trace_fit=None, hetero=False):
+                 gnn_state=True, trace_fit=None, hetero=False, scheduler="default", test_name="default"):
         self.gnn_state = gnn_state
         self.action_space = None
         self.is_random = is_random
@@ -28,10 +30,13 @@ class EnvTestMultiAgent(gym.Env):
         self.needs_print = needs_print
         self.trace_fit = trace_fit
         self.devices = {}
+        self.gpu_list = [np.ones((x[config.gpu_dim],)) for x in config.hetero_resource_capacity]
+        self.realworld_create_time = {}
         self.running = [{} for _ in range(config.agent_num)]
         self.pending = np.empty((config.agent_num, config.pending_num), dtype=object)
         self.queue = [[] for _ in range(config.agent_num)]
         self.hetero = hetero
+        self.test_name = test_name
         if self.hetero:
             self.resource = config.hetero_resource_capacity.copy()
         else:
@@ -40,6 +45,7 @@ class EnvTestMultiAgent(gym.Env):
         self.last_resource_allocation = None
         self.count = 0
         self.time = 0
+        self.scheduler = scheduler
         self.seed()
 
     def seed(self, seed=None):
@@ -88,11 +94,12 @@ class EnvTestMultiAgent(gym.Env):
 
         # real time walk
         if not not_ready:
+            time.sleep(5)
             for agent_idx in range(config.agent_num):
                 reward[agent_idx] = -len(self.running[agent_idx]) - len(self.queue[agent_idx]) - np.count_nonzero(
                     self.pending[agent_idx] != None)
 
-            _, jct = self.world_walk()
+            jct = self.world_walk()
             self.time += 1
             self.generate_new_tasks()
             self.load_tasks()
@@ -100,6 +107,7 @@ class EnvTestMultiAgent(gym.Env):
         end = False
         if not self.devices and self.count == config.episode_task_num:
             end = True
+            self.save()
         if self.is_inference and not not_ready:
             if self.hetero:
                 utility = config.hetero_resource_capacity.copy() - self.resource
@@ -120,6 +128,14 @@ class EnvTestMultiAgent(gym.Env):
             obs = self.build_state()
         return obs, reward, end, info
 
+    def save(self):
+        with open("img/{}/{}_create_time.json".format(self.test_name, self.scheduler), "w") as f:
+            json.dump(self.realworld_create_time, f)
+        while not all_exit():
+            print("waiting for all the tasks' completion")
+            time.sleep(10)
+        update_tracker()
+
     def reset(self):
         self.devices = {}
         self.running = [{} for _ in range(config.agent_num)]
@@ -130,6 +146,8 @@ class EnvTestMultiAgent(gym.Env):
         else:
             self.resource = np.asarray([config.resource_capacity], dtype=np.int64).repeat(config.agent_num, 0)
         self.resource_allocation = [{} for _ in range(config.agent_num)]
+        self.gpu_list = [np.ones((x[config.gpu_dim],)) for x in config.hetero_resource_capacity]
+        self.realworld_create_time = {}
         self.count = 0
         self.time = 0
         self.generate_new_tasks()
@@ -144,8 +162,9 @@ class EnvTestMultiAgent(gym.Env):
     def render(self, mode="human"):
         pass
 
-    def apply_action(self, agent_idx, device, actions):
+    def apply_action(self, agent_idx, device : DeviceNode, actions):
         if device is not None and (actions != 0).any():
+            print(agent_idx, self.resource[agent_idx], actions)
             self.running[agent_idx][device.device_id] = device
             self.resource[agent_idx] -= actions
             self.resource_allocation[agent_idx][device.device_id] = actions
@@ -153,9 +172,28 @@ class EnvTestMultiAgent(gym.Env):
             device.drl_index[agent_idx] = -1
             self.del_duplicate(device, agent_idx)
             device.start_time = self.time
+            device.gpu_list = self.get_n_gpus(agent_idx, actions[config.gpu_dim])
+            device.cid = start_task(device.device_id, actions[config.cpu_dim], device.gpu_list, config.agent_name[agent_idx], config.task_name[device.job_type])
             return True
         else:
             return False
+
+    def get_n_gpus(self, agent_idx, n):
+        if n <= 0:
+            return []
+        res = []
+        for idx in range(self.gpu_list[agent_idx].size):
+            if self.gpu_list[agent_idx][idx] == 1:
+                res.append(str(idx))
+                n -= 1
+                self.gpu_list[agent_idx][idx] = 0
+                if n == 0:
+                    break
+        return res
+
+    def return_gpus(self, agent_idx, gpus):
+        for idx in gpus:
+            self.gpu_list[agent_idx][int(idx)] = 1
 
     def del_duplicate(self, device, agent_idx):
         for tmp_agent_idx in range(config.agent_num):
@@ -172,39 +210,28 @@ class EnvTestMultiAgent(gym.Env):
     def world_walk(self):
         for d in self.devices:
             self.devices[d].time += 1
-        reward = np.zeros((config.agent_num,))
         jct = []
         for agent_idx in range(config.agent_num):
             ids = []
             for _, device_id in enumerate(self.running[agent_idx]):
                 device = self.running[agent_idx][device_id]
                 resource_allocation = self.resource_allocation[agent_idx][device_id]
-                if self.trace_fit:
-                    progress_delta = self.calculate_trace_progress(device.job_type, resource_allocation,
-                                                                   device.progress)
-                else:
-                    progress_delta = self.calculate_progress(device.job_type, resource_allocation, device.progress)
-                if self.last_resource_allocation is not None and device_id in self.last_resource_allocation[
-                    agent_idx] and (
-                        self.last_resource_allocation[agent_idx][device_id] != self.resource_allocation[agent_idx][
-                    device_id]).any():
-                    progress_delta = progress_delta * config.switch_weight[device.job_type]
-                reward[agent_idx] += progress_delta
-                device.progress += progress_delta
                 device.running_time += 1
                 if self.is_tiresias:
                     device.attained_gpu_service += resource_allocation[1]
-                if device.progress >= 1:
+                if is_exit_without_error(device.cid, config.agent_name[agent_idx]):
                     ids.append(device_id)
                     jct.append(device.time)
 
             for id in ids:
+                d = self.devices[id]
                 self.devices.pop(id)
                 self.running[agent_idx].pop(id)
                 resource_allocation = self.resource_allocation[agent_idx].pop(id)
                 self.resource[agent_idx] += resource_allocation
+                self.return_gpus(agent_idx, d.gpu_list)
         self.last_resource_allocation = copy.deepcopy(self.resource_allocation)
-        return reward, jct
+        return jct
 
     def generate_new_tasks(self):
         num = self.np_random.poisson(config.arrival_lambda, 1).item()
@@ -215,6 +242,7 @@ class EnvTestMultiAgent(gym.Env):
                 device = DeviceNode(device_id=str(uuid.uuid1()),
                                     job_type=job_type)
                 device.arrive_time = self.time
+                self.realworld_create_time[device.device_id] = time.time()
                 self.devices[device.device_id] = device
                 chosen_servers = tools.random_server_connection(self.np_random)
                 for agent_idx in chosen_servers:
@@ -229,25 +257,6 @@ class EnvTestMultiAgent(gym.Env):
                     if waiting:
                         self.queue[agent_idx].append(device)
                 self.count += 1
-
-    def calculate_progress(self, job_type, resource_allocation, progress):
-        if ((resource_allocation - config.job_min_requirement[job_type]) < 0).any():
-            return 0
-        else:
-            res = (config.resource_progress_weight[job_type][tuple(resource_allocation)]) * (np.sqrt(1.2 - progress)) + \
-                  config.resource_progress_base[job_type]
-            return max(0, res)
-
-    def calculate_trace_progress(self, job_type, resource_allocation, progress):
-        if ((resource_allocation - config.job_min_requirement[job_type]) < 0).any():
-            return 0
-        else:
-            if job_type == JobType.AUD:
-                res = self.trace_fit[config.task_name[job_type]][tuple(resource_allocation)]
-            else:
-                res = convert_trace.get_delta_progress(progress, *self.trace_fit[config.task_name[job_type]][
-                    tuple(resource_allocation)])
-            return max(0, res)
 
     def load_tasks(self):
         for agent_idx in range(config.agent_num):
@@ -401,3 +410,14 @@ class EnvTestMultiAgent(gym.Env):
             states.append(devices)
         return {"inp": np.asarray(states), "job_types": job_types, "connections_index": connections_index,
                 "resource": self.resource.copy(), "first_job": np.int64(earliest[:, 0])}
+
+    def calculate_trace_progress(self, job_type, resource_allocation, progress):
+        if ((resource_allocation - config.job_min_requirement[job_type]) < 0).any():
+            return 0
+        else:
+            if job_type == JobType.AUD:
+                res = self.trace_fit[config.task_name[job_type]][tuple(resource_allocation)]
+            else:
+                res = convert_trace.get_delta_progress(progress, *self.trace_fit[config.task_name[job_type]][
+                    tuple(resource_allocation)])
+            return max(0, res)

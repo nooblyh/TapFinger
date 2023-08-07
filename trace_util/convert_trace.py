@@ -9,14 +9,40 @@ from utils import config
 
 
 def csv_to_dict():
-    csv_file = open("./trace/trace.csv", "r")
+    # csv_file = open("./trace/trace.csv", "r")
+    csv_file = open("./trace_container.csv", "r")
+    reader = csv.reader(csv_file)
+
+    result = {}
+    for item in reader:
+        val = float(item[3]) + 14
+        if item[0] in result:
+            if int(item[1]) >= config.discrete_action_dimension[0] or int(item[2]) >= config.discrete_action_dimension[1]:
+                continue
+            if item[0] == "audio":
+                result[item[0]][int(item[1]), int(item[2])] = 5 / val
+            else:
+                result[item[0]][int(item[1]), int(item[2])] = (5 / val, 0)
+        else:
+            if item[0] == "audio":
+                result[item[0]] = np.zeros(config.discrete_action_dimension, dtype=float)
+                result[item[0]][int(item[1]), int(item[2])] = 5 / val
+            else:
+                result[item[0]] = np.empty(config.discrete_action_dimension, dtype=object)
+                result[item[0]][int(item[1]), int(item[2])] = (5 / val, 0)
+    csv_file.close()
+    return result
+
+def old_csv_to_dict():
+    # csv_file = open("./trace/trace.csv", "r")
+    csv_file = open("./trace_container.csv", "r")
     reader = csv.reader(csv_file)
 
     result = {}
     for item in reader:
         if item[0] in result:
             if item[0] == "audio":
-                result[item[0]][int(item[1]), int(item[2])] = 5 / float(item[3])
+                result[item[0]][int(item[1]), int(item[2])] = 10 / float(item[3])
             else:
                 if item[0] == "lm":
                     scale = 10
@@ -26,7 +52,7 @@ def csv_to_dict():
         else:
             if item[0] == "audio":
                 result[item[0]] = np.zeros(config.discrete_action_dimension, dtype=float)
-                result[item[0]][int(item[1]), int(item[2])] = 1 / float(item[3])
+                result[item[0]][int(item[1]), int(item[2])] = 10 / float(item[3])
             else:
                 if item[0] == "lm":
                     scale = 10
@@ -39,12 +65,12 @@ def csv_to_dict():
 
 
 def progress_fit_func(x, a, b):
-    return a * (x ** b)
+    return a * x + b
 
 
 def get_delta_progress(y, a, b):
-    step = np.power(y / a, 1 / b)
-    return progress_fit_func(step + 1, a, b)
+    step = (y - b) / a
+    return progress_fit_func(step + 1, a, b) - y
 
 
 def progress_curve_fitting(x_arr, y_arr):
@@ -77,7 +103,7 @@ def plot(x, y, result, item):
 
 
 def get_jct():
-    csv_file = open("trace.csv", "r")
+    csv_file = open("trace_container.csv", "r")
     reader = csv.reader(csv_file)
     result = np.zeros(config.discrete_action_dimension, dtype=float)
     for item in reader:
@@ -145,9 +171,9 @@ def plot_motivation_gpu_on_cpu():
     plt.savefig('motivation_GPU_on_CPU.pdf')
 
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
 #     plot_motivation_cpu_on_gpu()
 #     plot_motivation_gpu_on_cpu()
-    # csv_to_dict()
-    # result = csv_to_dict()
-    # print(get_delta_progress(0.8, *result["mnist"][16, 8]))
+    csv_to_dict()
+    result = csv_to_dict()
+    print(get_delta_progress(0.8, *result["mnist"][16, 8]))

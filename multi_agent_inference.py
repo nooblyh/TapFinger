@@ -12,25 +12,26 @@ from tianshou.data import Batch
 
 from nn.model import Actors, ToyModel
 from nn.model import HAN
-from trace import convert_trace
+from trace_util import convert_trace
 from utils import config, tools
 from utils.benchmark import random_select_random_allocate, random_select_min_allocate, optimus, tiresias, \
-    optimus_sync_speed_curve_fitting
+    optimus_sync_speed_curve_fitting, non_preemptable_tiresias, non_preemptable_optimus
 from utils.plot import plot_jct, plot_task_accumulation
+from portainer.utils import start_portainer_tracker
 
 if __name__ == '__main__':
     RANDOM_SEED = 42
-    # trace_fit = convert_trace.csv_to_dict()
-    trace_fit = None
-    hetero = False
+    trace_fit = convert_trace.csv_to_dict()
+    # trace_fit = None
+    hetero = True
     with torch.no_grad():
-        model_names = ["Tiresias", "Optimus", "Random", "Min", "TapFinger"]
+        model_names = ["Optimus"]
         # model_names = ["TapFinger", "Vanilla DRL"]
         # model_names = ["TapFinger", "No-pointer", "Optimus", "Min"]
         # model_names = ["Tiresias", "Optimus", "Random", "Min", "TapFinger", "No-HAN"]
 
         if "Optimus" in model_names:
-            env = gym.make('ENVTEST-v3', is_random=False, is_test=True, needs_print=False, is_inference=True,
+            env = gym.make('ENVTEST-v4', is_random=False, is_test=True, needs_print=False, is_inference=True,
                            is_optimus=True, trace_fit=trace_fit, hetero=hetero)
             env.seed(RANDOM_SEED)
             cpu_arr = np.tile(np.arange(0, config.discrete_action_dimension[config.cpu_dim], dtype=float),
@@ -43,8 +44,6 @@ if __name__ == '__main__':
             speed_arr = np.zeros((len(config.job_time), config.discrete_action_dimension[config.cpu_dim],
                                   config.discrete_action_dimension[config.gpu_dim]), dtype=float)
             for j in config.JobType:
-                if j not in config.resource_progress_weight:
-                    continue
                 for c in range(config.discrete_action_dimension[config.cpu_dim]):
                     for g in range(config.discrete_action_dimension[config.gpu_dim]):
                         r_a = np.asarray([0, 0])
@@ -60,7 +59,7 @@ if __name__ == '__main__':
             for j in config.JobType:
                 params[j] = optimus_sync_speed_curve_fitting(cpu_arr[j], gpu_arr[j], speed_arr[j].flatten())
 
-        test_name = "hetero_6_agent"
+        test_name = "container_version_tmp"
         for model_name in model_names:
             random.seed(RANDOM_SEED)
             np.random.seed(RANDOM_SEED)
@@ -74,17 +73,17 @@ if __name__ == '__main__':
                 is_tiresias = True
             elif model_name == "Vanilla DRL" or model_name == "No-HAN":
                 gnn_state = False
-            env = gym.make('ENVTEST-v3', is_random=False, is_test=True, needs_print=False, is_inference=True,
+            env = gym.make('ENVTEST-v4', is_random=False, is_test=True, needs_print=True, is_inference=True,
                            is_tiresias=is_tiresias, is_optimus=is_optimus, gnn_state=gnn_state, trace_fit=trace_fit,
-                           hetero=hetero)
+                           hetero=hetero, test_name=test_name, scheduler=model_name)
             env.seed(RANDOM_SEED)
             observation = env.reset()
-
+            start_portainer_tracker(model_name, test_name)
             if model_name == "TapFinger":
                 actor = Actors(HAN(), pointer_type="attn")
                 actor.to(config.device)
                 # trial_name = sys.argv[1]
-                trial_name = "hetero_6_agent/model"
+                trial_name = test_name + "/model"
                 log_path = os.path.join('img', trial_name)
                 if config.device == torch.device("cpu"):
                     actor.load_state_dict(
@@ -138,10 +137,10 @@ if __name__ == '__main__':
             utility = []
             while True:
                 if model_name == "Tiresias":
-                    action = tiresias(observation, hetero=hetero)
+                    action = non_preemptable_tiresias(observation, hetero=hetero)
                     observation, reward, done, info = env.step(action)
                 elif model_name == "Optimus":
-                    action = optimus(observation, params, hetero=hetero)
+                    action = non_preemptable_optimus(observation, params, hetero=hetero)
                     observation, reward, done, info = env.step(action)
                 elif model_name == "Random":
                     action = random_select_random_allocate(observation)
