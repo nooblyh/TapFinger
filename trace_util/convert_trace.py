@@ -17,6 +17,8 @@ def csv_to_dict():
     for item in reader:
         val = float(item[3]) + 14
         if item[0] in result:
+            if int(item[1]) >= config.discrete_action_dimension[0] or int(item[2]) >= config.discrete_action_dimension[1]:
+                continue
             if item[0] == "audio":
                 result[item[0]][int(item[1]), int(item[2])] = 5 / val
             else:

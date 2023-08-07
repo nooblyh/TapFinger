@@ -14,7 +14,7 @@ from utils import config, tools
 import copy
 
 from utils.config import JobType
-from portainer.utils import start_task, start_portainer_tracker, all_exit, update_tracker, is_exit_without_error
+from portainer.utils import start_task, all_exit, update_tracker, is_exit_without_error
 
 class EnvTestContainer(gym.Env):
 
@@ -129,9 +129,8 @@ class EnvTestContainer(gym.Env):
         return obs, reward, end, info
 
     def save(self):
-        with open("img/{}/create_time.json".format(self.test_name), "w") as f:
+        with open("img/{}/{}_create_time.json".format(self.test_name, self.scheduler), "w") as f:
             json.dump(self.realworld_create_time, f)
-        start_portainer_tracker(self.scheduler)
         while not all_exit():
             print("waiting for all the tasks' completion")
             time.sleep(10)

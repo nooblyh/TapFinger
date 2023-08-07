@@ -55,14 +55,12 @@ def random_select_min_allocate(obs):
                 conflict_mask[agent_idx] = True
                 allocation_act[agent_idx] = -1
                 continue
-            else:
-                check_conflict.append(obs['connections_index'][agent_idx][index_act[agent_idx]])
-
             min_resource_allocation = config.job_min_requirement[obs["job_types"][agent_idx][index_act[agent_idx]]]
             if mask[agent_idx, index_act[agent_idx]][tuple(min_resource_allocation)]:
                 resource_onehot = np.zeros(config.discrete_action_dimension)
                 resource_onehot[tuple(min_resource_allocation)] = 1
                 allocation_act[agent_idx] = resource_onehot.flatten().nonzero()[0].item()
+                check_conflict.append(obs['connections_index'][agent_idx][index_act[agent_idx]])
             else:
                 allocation_act[agent_idx] = 0
         else:
@@ -338,7 +336,6 @@ def non_preemptable_tiresias(obs, hetero=False):
                 if d_curr.device_id in duplicate:
                     continue
                 else:
-                    duplicate.append(d_curr.device_id)
                     index_act[agent_idx] = d_curr.drl_index[agent_idx]
                     has_next = True
                     break
@@ -346,12 +343,13 @@ def non_preemptable_tiresias(obs, hetero=False):
                 index_act[agent_idx] = -1
 
         if has_next:
-            r_a = np.minimum(resource[agent_idx], r_a)
+            r_a = np.minimum(np.asarray(config.discrete_action_dimension)-1, np.minimum(resource[agent_idx], r_a))
             if np.all(r_a):
                 obs["resource_allocation"][agent_idx][d_curr.device_id] = r_a
                 resource_onehot = np.zeros(config.discrete_action_dimension)
                 resource_onehot[tuple(r_a)] = 1
                 allocation_act[agent_idx] = resource_onehot.flatten().nonzero()[0].item()
+                duplicate.append(d_curr.device_id)
             else:
                 index_act[agent_idx] = -1
     return {"allocation_act": allocation_act, "index_act": index_act, "resource_allocation": obs["resource_allocation"],
@@ -428,7 +426,7 @@ def non_preemptable_optimus(obs, params, hetero=False):
 
         d_curr = obs["pending"][agent_idx][curr_idx]
         r_a = pre_allocation[obs["pending"][agent_idx][curr_idx].device_id]
-        r_a = np.minimum(true_resource[agent_idx], r_a)
+        r_a = np.minimum(np.asarray(config.discrete_action_dimension)-1, np.minimum(true_resource[agent_idx], r_a))
 
         # pre allocation bias
         if r_a[config.gpu_dim] > 1:

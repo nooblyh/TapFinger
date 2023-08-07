@@ -14,6 +14,7 @@ def get_data_container(model_names):
     task_accumulations = []
     utilities = []
     for model_name in model_names:
+        print(model_name)
         create_time_file_name = data_folder + "{}_create_time.json".format(model_name)
         accumulation_file_name = data_folder + "{}_task_accumulation.json".format(model_name)
         utility_file_name = data_folder + "{}_utility.json".format(model_name)
@@ -24,8 +25,8 @@ def get_data_container(model_names):
         current_jcts = []
         for key in create_time:
             et = pd.to_datetime(exit_time["/"+key][1], format='%Y-%m-%dT%H:%M:%S.%fZ').timestamp()
-            print(et)
             current_jcts.append(et - create_time[key])
+            # print(et - create_time[key])
         jcts.append(current_jcts)
         task_accumulations.append(json.load(open(accumulation_file_name)))
         utilities.append(json.load(open(utility_file_name)))
@@ -53,7 +54,7 @@ if __name__ == '__main__':
     data_folder = "./img/container_version/"
 
     # model_names = ["Tiresias", "Optimus", "TapFinger"]
-    model_names = ["Tiresias", "Optimus", "TapFinger", "Random", "Min"]
+    model_names = ["Tiresias", "Optimus", "TapFinger", "Random"]
     # model_names = ["TapFinger", "Vanilla DRL"]
     # model_names = ["TapFinger", "No-pointer", "Optimus", "Min"]
     # model_names = ["Optimus", "TapFinger", "No-HAN"]

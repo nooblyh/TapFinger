@@ -17,15 +17,18 @@ default_headers = {"X-API-Key": token}
 create_docker = "docker/containers/create"
 
 scheduler_name = "default"
+test_name = ""
 tasks = {}
-nodes = [2, 3, 5]
+nodes = [3, 6, 5]
 label_key = "yihong.scheduler"
 
-def start_portainer_tracker(scheduler):
+def start_portainer_tracker(scheduler, test):
     global scheduler_name
+    global test_name
     global tasks
     scheduler_name = scheduler
-    task = {}
+    test_name = test
+    tasks = {}
 
 def update_tracker():
     for n in nodes:
@@ -41,9 +44,20 @@ def update_tracker():
             start_time = content["State"]["StartedAt"]
             end_time = content["State"]["FinishedAt"]
             tasks[c["Names"][0]] = (start_time, end_time)
-    with open("start_exited.json", "w") as f:    
+    with open("img/{}/{}_start_exited.json".format(test_name, scheduler_name), "w") as f:    
         json.dump(tasks, f)
 
+def delete_all():
+    for n in nodes:
+        req = urljoin(url, "{}/".format(n))
+        req = urljoin(req, list_docker)
+        r = requests.get(req, headers=default_headers, verify=False, params={"all": True, "filters": json.dumps({"label": [label_key]})})
+        for c in r.json():
+            inspect_docker = "docker/containers/{}".format(c["Id"])
+            req = urljoin(url, "{}/".format(n))
+            req = urljoin(req, inspect_docker)
+            r = requests.delete(req, headers=default_headers, verify=False)
+            print(r.status_code)
 
 def all_exit():
     for n in nodes:
@@ -118,4 +132,4 @@ def start_task(name, cpu_num, gpu_list, node, task_type):
     print(r.content)
     return resp["Id"]
 
-# start_task("yihong-debug123", 16, ["0", "1"], 2, "mnist")
+delete_all()
