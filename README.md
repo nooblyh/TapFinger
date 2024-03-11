@@ -5,6 +5,8 @@ Install tianshou and pyg using the conda environment. Tianshou has been changing
 
 The following command directly creates a conda environment named `gnn_drl` for the project to run.
 
+It requires Python >= 3.6.
+
 `
 conda create -n gnn_drl pytorch torchvision torchaudio cudatoolkit=11.3 torchtext torchdata pyg tianshou=0.4.7 pynvml matplotlib -c pytorch -c pyg -c conda-forge
 `
